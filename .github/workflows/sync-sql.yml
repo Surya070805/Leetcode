@@ -1,0 +1,51 @@
+name: Route SQL to Secondary Repo
+
+on:
+  push:
+    branches: [ main ] # Make sure your default branch is 'main'. Change to 'master' if needed.
+
+jobs:
+  transfer-sql:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Grab the primary repo (where LeetHub AI just pushed)
+      - name: Checkout Primary Repo
+        uses: actions/checkout@v4
+        with:
+          path: main-repo
+
+      # 2. Grab the secondary SQL-only repo using your secret token
+      - name: Checkout SQL Repo
+        uses: actions/checkout@v4
+        with:
+          repository: Surya070805/Leetcode_SQL # <-- CHANGE THIS LINE
+          token: ${{ secrets.PAT_TOKEN }}
+          path: sql-repo
+
+      # 3. Find and copy any folders containing .sql files
+      - name: Copy SQL Problems
+        run: |
+          cd main-repo
+          # Find directories with .sql files and copy them to the SQL repo
+          find . -type f -name "*.sql" | while read file; do
+            dir=$(dirname "$file")
+            # Create the matching directory in the SQL repo
+            mkdir -p "../sql-repo/$dir"
+            # Copy the whole folder (including the problem's README and .sql file)
+            cp -r "$dir"/* "../sql-repo/$dir/"
+          done
+
+      # 4. Commit and push the new files to the SQL repo
+      - name: Commit and Push
+        run: |
+          cd sql-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          # Commit only if there are new changes
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "Auto-sync SQL problem from LeetHub AI"
+            git push
+          else
+            echo "No new SQL problems to sync today!"
+          fi
