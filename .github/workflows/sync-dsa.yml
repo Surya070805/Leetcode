@@ -1,0 +1,51 @@
+name: Route DSA to Secondary Repo
+
+on:
+  push:
+    branches: [ main ] # Make sure your default branch is 'main'
+
+jobs:
+  transfer-dsa:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Grab the primary repo
+      - name: Checkout Primary Repo
+        uses: actions/checkout@v4
+        with:
+          path: main-repo
+
+      # 2. Grab the secondary DSA-only repo using your secret token
+      - name: Checkout DSA Repo
+        uses: actions/checkout@v4
+        with:
+          repository: Surya070805/Leetcode_DSA # <-- UPDATE THIS with your new repo name
+          token: ${{ secrets.PAT_TOKEN }}
+          path: dsa-repo
+
+      # 3. Find and copy folders containing common DSA files (Python, C++, Java, JS, C, etc.)
+      - name: Copy DSA Problems
+        run: |
+          cd main-repo
+          # Find directories with code files and copy them to the DSA repo
+          find . -type f \( -name "*.py" -o -name "*.cpp" -o -name "*.java" -o -name "*.js" -o -name "*.c" -o -name "*.cs" \) | while read file; do
+            dir=$(dirname "$file")
+            # Create the matching directory in the DSA repo
+            mkdir -p "../dsa-repo/$dir"
+            # Copy the whole folder (including the README and code file)
+            cp -r "$dir"/* "../dsa-repo/$dir/"
+          done
+
+      # 4. Commit and push the new files to the DSA repo
+      - name: Commit and Push
+        run: |
+          cd dsa-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          # Commit only if there are new changes
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "Auto-sync DSA problem from LeetHub AI"
+            git push
+          else
+            echo "No new DSA problems to sync today!"
+          fi
